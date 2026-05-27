@@ -257,7 +257,6 @@
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="config.js" onerror="console.warn('config.js 없음 — API 키를 직접 입력해야 합니다')"></script>
 </head>
 <body>
 
@@ -450,8 +449,10 @@ const FEAT_LABELS = {
   nose:"코", mouth:"입", chin:"턱", cheekbones:"광대", skin_tone:"피부톤",
 };
 
+// ── API 키 (서버 프록시 사용) ─────────────────────────────────────────────────
+const apiKey = "proxy";
+
 // ── 상태 ──────────────────────────────────────────────────────────────────────
-const apiKey = (typeof OPENROUTER_API_KEY !== "undefined") ? OPENROUTER_API_KEY : "";
 let step1Data = null;
 let step2Data = null;
 let thumbSrc  = "";
@@ -550,23 +551,17 @@ function extractJSON(text) {
   throw new Error("응답에서 JSON을 찾을 수 없습니다.");
 }
 
-// ── OpenRouter 호출 ───────────────────────────────────────────────────────────
+// ── OpenRouter 호출 (서버 프록시 경유) ────────────────────────────────────────
 async function callOR(model, messages, maxTokens) {
-  const res = await fetch(ENDPOINT, {
+  const res = await fetch("/api/proxy", {
     method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": location.href,
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ model, messages, max_tokens: maxTokens }),
   });
   const data = await res.json();
   if (!res.ok) {
     const msg = data.error?.message || `HTTP ${res.status}`;
-    if (res.status === 401 || msg.toLowerCase().includes("user not found") || msg.toLowerCase().includes("invalid api key")) {
-      throw new Error("API 키가 유효하지 않습니다. config.js의 OPENROUTER_API_KEY를 확인해주세요.");
-    }
+    console.error("[proxy]", res.status, JSON.stringify(data));
     throw new Error(msg);
   }
   return data.choices[0].message.content;
